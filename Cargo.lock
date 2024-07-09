@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "mini_grep"
+name = "mini-grep"
 version = "0.1.0"
