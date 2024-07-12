@@ -10,7 +10,15 @@ use std::path::Path;
 fn main() {
     let args: Vec<_> = env::args().collect();
 
-    if args.len() < 3 {
+    if args.len() != 3 {
+        if args.len() > 3 {
+            eprintln!(
+                "Too many arguments! Please call the script like: {} pattern filename",
+                args[0],
+            );
+            return;
+        }
+
         eprintln!(
             "Missing arguments! Please call the script like: {} pattern filename",
             args[0],
