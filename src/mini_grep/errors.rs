@@ -43,7 +43,6 @@ pub enum InvalidArgumentError {
     NotAFile(String, String),
     FileNotFound(String),
     CannotResolvePath(String, std::io::Error),
-    CannotConvertPathToString(String),
     NotAReadableFile(String, std::io::Error),
 }
 
@@ -60,10 +59,6 @@ impl Display for InvalidArgumentError {
             Self::CannotResolvePath(filename, error) => format!(
                 "Cannot resolve the path ('{filename}') to the absolute path, \
                 due to this error {error}."
-            ),
-            Self::CannotConvertPathToString(filename) => format!(
-                "Cannot convert the absolute path ('{filename}') to its \
-                string representation."
             ),
             Self::NotAReadableFile(filename, error) => {
                 format!("Cannot open the file '{filename}', due to this error {error}.")
@@ -83,8 +78,7 @@ impl MiniGrepArgsError for InvalidArgumentError {
             Self::NotAFile(..) => 131,
             Self::FileNotFound(_) => 132,
             Self::CannotResolvePath(..) => 133,
-            Self::CannotConvertPathToString(_) => 134,
-            Self::NotAReadableFile(..) => 135,
+            Self::NotAReadableFile(..) => 134,
         }
     }
 }

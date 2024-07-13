@@ -65,9 +65,9 @@ impl Command {
                 InvalidArgumentError::CannotResolvePath(filename.to_owned(), error)
             })?;
 
-            return Err(absolute_path.to_str().map_or(
-                InvalidArgumentError::CannotConvertPathToString(filename),
-                |file_path| {
+            return Err(absolute_path
+                .to_str()
+                .map(|file_path| {
                     let file_type = if absolute_path.is_dir() {
                         "directory"
                     } else {
@@ -75,8 +75,13 @@ impl Command {
                     };
 
                     InvalidArgumentError::NotAFile(file_path.to_owned(), file_type.to_owned())
-                },
-            ));
+                })
+                .unwrap_or_else(|| {
+                    panic!(
+                        "The absolute path conversion ('{filename}') to its \
+                        string representation fails."
+                    )
+                }));
         };
 
         File::open(file_path)
