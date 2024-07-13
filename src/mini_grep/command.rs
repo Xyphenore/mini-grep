@@ -19,31 +19,26 @@ impl Command {
         let pattern = &self.pattern;
         let filename = &self.filename;
 
-        let buf = BufReader::new(&self.file);
+        let mut lines =
+            BufReader::new(&self.file)
+                .lines()
+                .enumerate()
+                .filter_map(|(line_no, line)| {
+                    let line = line.unwrap_or_else(|error| {
+                        eprintln!(
+                            "Cannot read the line {} from the file '{filename}', due \
+                             to this error {error}.",
+                            line_no + 1,
+                        );
 
-        let mut lines = buf.lines().enumerate().filter_map(|(line_no, line)| {
-            let line = line.unwrap_or_else(|error| {
-                eprintln!(
-                    "Cannot read the line {} from the file '{filename}', due to this \
-                    error {error}.",
-                    line_no + 1,
-                );
+                        String::default()
+                    });
 
-                String::default()
-            });
-
-            if line.contains(pattern) {
-                Some((line_no + 1, line))
-            } else {
-                None
-            }
-        });
+                    line.contains(pattern).then_some((line_no + 1, line))
+                });
 
         if let Some((line_no, line)) = lines.next() {
-            println!(
-                "The file '{filename}' contains these lines with the pattern \
-                '{pattern}':",
-            );
+            println!("The file '{filename}' contains these lines with the pattern '{pattern}':",);
             println!("{line_no}: {line}");
             lines.for_each(|(line_no, line)| println!("{line_no}: {line}"));
         } else {
@@ -66,28 +61,22 @@ impl Command {
                 return Err(InvalidArgumentError::FileNotFound(filename));
             }
 
-            return Err(file_path
-                .canonicalize()
-                .map_err(|error| {
-                    InvalidArgumentError::CannotResolvePath(filename.to_owned(), error)
-                })
-                .and_then(|absolute_path| -> Result<(), InvalidArgumentError> {
+            let absolute_path = file_path.canonicalize().map_err(|error| {
+                InvalidArgumentError::CannotResolvePath(filename.to_owned(), error)
+            })?;
+
+            return Err(absolute_path.to_str().map_or(
+                InvalidArgumentError::CannotConvertPathToString(filename),
+                |file_path| {
                     let file_type = if absolute_path.is_dir() {
                         "directory"
                     } else {
                         "unknown"
                     };
 
-                    if let Some(file_path) = absolute_path.to_str() {
-                        return Err(InvalidArgumentError::NotAFile(
-                            file_path.to_owned(),
-                            file_type.to_owned(),
-                        ));
-                    }
-
-                    Err(InvalidArgumentError::CannotConvertPathToString(filename))
-                })
-                .unwrap_err());
+                    InvalidArgumentError::NotAFile(file_path.to_owned(), file_type.to_owned())
+                },
+            ));
         };
 
         File::open(file_path)
