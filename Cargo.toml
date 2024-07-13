@@ -1,6 +1,6 @@
 [package]
 name = "mini-grep"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Xyphenore"]
 description = "This is a simple grep."
 readme = "README.md"
