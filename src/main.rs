@@ -10,12 +10,10 @@ use crate::mini_grep::Command;
 mod mini_grep;
 
 fn main() {
-    let command = Command::try_from(args());
-    if let Err(error) = command {
-        eprintln!("{}", error);
-
-        process::exit(error.code());
-    }
-
-    command.unwrap().execute();
+    Command::try_from(args())
+        .unwrap_or_else(|error| {
+            eprintln!("{}", error);
+            process::exit(error.code());
+        })
+        .execute()
 }
