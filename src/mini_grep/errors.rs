@@ -1,7 +1,9 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
-pub trait MiniGrepArgsError: Debug + Display + Error {}
+pub trait MiniGrepArgsError: Debug + Display + Error {
+    fn code(&self) -> i32;
+}
 
 #[derive(Debug, Clone)]
 pub enum InvalidSyntaxError {
@@ -26,7 +28,14 @@ impl Display for InvalidSyntaxError {
 
 impl Error for InvalidSyntaxError {}
 
-impl MiniGrepArgsError for InvalidSyntaxError {}
+impl MiniGrepArgsError for InvalidSyntaxError {
+    fn code(&self) -> i32 {
+        match self {
+            Self::Missing(_) => 126,
+            Self::TooMany(_) => 127,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum InvalidArgumentError {
@@ -67,4 +76,15 @@ impl Display for InvalidArgumentError {
 
 impl Error for InvalidArgumentError {}
 
-impl MiniGrepArgsError for InvalidArgumentError {}
+impl MiniGrepArgsError for InvalidArgumentError {
+    fn code(&self) -> i32 {
+        match self {
+            Self::BlankPattern(_) => 130,
+            Self::NotAFile(..) => 131,
+            Self::FileNotFound(_) => 132,
+            Self::CannotResolvePath(..) => 133,
+            Self::CannotConvertPathToString(_) => 134,
+            Self::NotAReadableFile(..) => 135,
+        }
+    }
+}

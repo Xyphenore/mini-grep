@@ -3,6 +3,7 @@
 #![doc(issue_tracker_base_url = "https://github.com/Xyphenore/mini-grep/issues/")]
 
 use std::env::args;
+use std::process;
 
 use crate::mini_grep::Command;
 
@@ -12,7 +13,8 @@ fn main() {
     let command = Command::try_from(args());
     if let Err(error) = command {
         eprintln!("{}", error);
-        return;
+
+        process::exit(error.code());
     }
 
     command.unwrap().execute();
