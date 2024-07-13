@@ -12,7 +12,7 @@ mod mini_grep;
 fn main() {
     Command::try_from(args())
         .unwrap_or_else(|error| {
-            eprintln!("{}", error);
+            eprintln!("{error}");
             process::exit(error.code());
         })
         .execute()

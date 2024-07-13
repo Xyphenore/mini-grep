@@ -20,8 +20,8 @@ impl Display for InvalidSyntaxError {
 
         write!(
             f,
-            "{} arguments! Please call the script like: {} pattern filename",
-            quantity_args, executable,
+            "{quantity_args} arguments! Please call the script like: {executable} \
+            pattern filename",
         )
     }
 }
