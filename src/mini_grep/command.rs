@@ -19,34 +19,42 @@ impl Command {
         let pattern = &self.pattern;
         let filename = &self.filename;
 
-        let mut lines =
-            BufReader::new(&self.file)
-                .lines()
-                .enumerate()
-                .filter_map(|(line_no, line)| {
-                    let line = line.unwrap_or_else(|error| {
-                        eprintln!(
-                            "Cannot read the line {} from the file '{filename}', due \
-                             to this error {error}.",
-                            line_no + 1,
-                        );
+        let lines = self.search();
 
-                        String::default()
-                    });
-
-                    line.contains(pattern).then_some((line_no + 1, line))
-                });
-
-        if let Some((line_no, line)) = lines.next() {
-            println!("The file '{filename}' contains these lines with the pattern '{pattern}':",);
-            println!("{line_no}: {line}");
-            lines.for_each(|(line_no, line)| println!("{line_no}: {line}"));
-        } else {
+        if lines.is_empty() {
             println!(
                 "The file '{filename}' does not contain any line with the pattern \
                 '{pattern}'.",
             )
+        } else {
+            println!("The file '{filename}' contains these lines with the pattern '{pattern}':",);
+            lines
+                .into_iter()
+                .for_each(|(line_no, line)| println!("{line_no}: {line}"));
         }
+    }
+
+    fn search(&self) -> Vec<(usize, String)> {
+        let pattern = &self.pattern;
+        let filename = &self.filename;
+
+        BufReader::new(&self.file)
+            .lines()
+            .enumerate()
+            .filter_map(|(line_no, line)| {
+                let line = line.unwrap_or_else(|error| {
+                    eprintln!(
+                        "Cannot read the line {} from the file '{filename}', due \
+                             to this error {error}.",
+                        line_no + 1,
+                    );
+
+                    String::default()
+                });
+
+                line.contains(pattern).then_some((line_no + 1, line))
+            })
+            .collect()
     }
 
     fn build(pattern: String, filename: String) -> Result<Command, InvalidArgumentError> {
