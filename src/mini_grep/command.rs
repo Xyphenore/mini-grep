@@ -100,16 +100,20 @@ impl Command {
                 filename,
             })
     }
-}
 
-impl TryFrom<Args> for Command {
-    type Error = Box<dyn MiniGrepArgsError>;
+    fn try_from_iter(
+        args: impl Iterator<Item = String>,
+    ) -> Result<Command, Box<dyn MiniGrepArgsError>> {
+        let args: Vec<_> = args.collect();
 
-    fn try_from(value: Args) -> Result<Command, Self::Error> {
-        let args: Vec<_> = value.collect();
+        let amount_args = args.len();
 
-        if args.len() != 3 {
-            let error_ctor = if args.len() > 3 {
+        if amount_args != 3 {
+            if amount_args == 0 {
+                panic!("Missing the executable name.");
+            }
+
+            let error_ctor = if amount_args > 3 {
                 InvalidSyntaxError::TooMany
             } else {
                 InvalidSyntaxError::Missing
@@ -120,6 +124,14 @@ impl TryFrom<Args> for Command {
 
         Self::build(args[1].to_owned(), args[2].to_owned())
             .map_err(|error| Box::new(error) as Box<dyn MiniGrepArgsError>)
+    }
+}
+
+impl TryFrom<Args> for Command {
+    type Error = Box<dyn MiniGrepArgsError>;
+
+    fn try_from(value: Args) -> Result<Command, Self::Error> {
+        Self::try_from_iter(value)
     }
 }
 
