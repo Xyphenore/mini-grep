@@ -154,8 +154,8 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     const NOT_READABLE_FILE: &str = "resources/not_readable_file.txt";
-    #[cfg(target_os = "linux")]
-    const NOT_READABLE_FILE: &str = "resources/not_readable_linux_file";
+    #[cfg(target_os = "unix")]
+    const NOT_READABLE_FILE: &str = "resources/not_readable_unix_file";
 
     #[derive(Debug, Clone, Copy)]
     pub enum PatternType {
@@ -177,7 +177,7 @@ mod tests {
     #[derive(Debug, Clone, Copy)]
     pub enum PathType {
         Directory,
-        #[cfg(target_os = "linux")]
+        #[cfg(target_os = "unix")]
         Unknown,
     }
 
@@ -185,7 +185,7 @@ mod tests {
         fn build_part(&self) -> &str {
             match self {
                 Self::Directory => "a directory",
-                #[cfg(target_os = "linux")]
+                #[cfg(target_os = "unix")]
                 Self::Unknown => "an unknown node type",
             }
         }
@@ -195,7 +195,7 @@ mod tests {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
             let path_type = match self {
                 Self::Directory => "directory",
-                #[cfg(target_os = "linux")]
+                #[cfg(target_os = "unix")]
                 Self::Unknown => "unknown",
             };
 
@@ -268,7 +268,7 @@ mod tests {
             }
 
             #[test]
-            #[cfg(target_os = "linux")]
+            #[cfg(target_os = "unix")]
             fn pointing_to_unknown_typed_node() {
                 let res = Command::build("pattern".to_owned(), "resources/unknown_file".to_owned());
                 check_result(res, PathType::Unknown)
@@ -497,7 +497,7 @@ mod tests {
             }
 
             #[test]
-            #[cfg(target_os = "linux")]
+            #[cfg(target_os = "unix")]
             fn pointing_to_unknown_typed_node() {
                 let args = vec![
                     "test_program".to_owned(),
