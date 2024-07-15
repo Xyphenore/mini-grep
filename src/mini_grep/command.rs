@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use std::env;
 use std::env::Args;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
@@ -7,27 +8,62 @@ use std::path::Path;
 
 use super::errors::{InvalidArgumentError, InvalidSyntaxError, MiniGrepArgsError};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+enum CaseSensitive {
+    #[default]
+    True,
+    False,
+}
+
+impl From<bool> for CaseSensitive {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::True
+        } else {
+            Self::False
+        }
+    }
+}
+
+impl From<CaseSensitive> for bool {
+    fn from(value: CaseSensitive) -> Self {
+        value == CaseSensitive::True
+    }
+}
+
 #[derive(Debug)]
 pub struct Command {
     pattern: String,
     filename: String,
     file: File,
+    case_sensitive: bool,
 }
 
 impl Command {
+    pub const IGNORE_CASE_ENV_NAME: &'static str = "IGNORE_CASE";
+    const TRUE_VALUES: &'static [&'static str] = &["true", "1"];
+
     pub fn execute(&self) {
         let pattern = &self.pattern;
         let filename = &self.filename;
+        let is_case_sensitive = if self.case_sensitive {
+            "sensitive"
+        } else {
+            "insensitive"
+        };
 
         let lines = self.search();
 
         if lines.is_empty() {
             println!(
-                "The file '{filename}' does not contain any line with the pattern \
-                '{pattern}'.",
+                "The file '{filename}' does not contain any line with the case \
+                {is_case_sensitive} pattern '{pattern}'.",
             )
         } else {
-            println!("The file '{filename}' contains these lines with the pattern '{pattern}':",);
+            println!(
+                "The file '{filename}' contains these lines with the case \
+                {is_case_sensitive} pattern '{pattern}':",
+            );
             lines
                 .into_iter()
                 .for_each(|(line_no, line)| println!("{line_no}: {line}"));
@@ -35,7 +71,12 @@ impl Command {
     }
 
     fn search(&self) -> Vec<(usize, String)> {
-        let pattern = &self.pattern;
+        let pattern = if self.case_sensitive {
+            self.pattern.clone()
+        } else {
+            self.pattern.to_lowercase()
+        };
+
         let filename = &self.filename;
 
         BufReader::new(&self.file)
@@ -45,19 +86,29 @@ impl Command {
                 let line = line.unwrap_or_else(|error| {
                     eprintln!(
                         "Cannot read the line {} from the file '{filename}', due \
-                             to this error {error}.",
+                         to this error {error}.",
                         line_no + 1,
                     );
 
                     String::default()
                 });
 
-                line.contains(pattern).then_some((line_no + 1, line))
+                if self.case_sensitive {
+                    line.clone()
+                } else {
+                    line.to_lowercase()
+                }
+                .contains(&pattern)
+                .then_some((line_no + 1, line))
             })
             .collect()
     }
 
-    fn build(pattern: String, filename: String) -> Result<Command, InvalidArgumentError> {
+    fn build(
+        pattern: String,
+        filename: String,
+        case_sensitive: CaseSensitive,
+    ) -> Result<Command, InvalidArgumentError> {
         if pattern.trim().is_empty() {
             return Err(InvalidArgumentError::BlankPattern(pattern));
         }
@@ -98,31 +149,48 @@ impl Command {
                 pattern,
                 file,
                 filename,
+                case_sensitive: bool::from(case_sensitive),
             })
     }
 
     fn try_from_iter(
-        args: impl Iterator<Item = String>,
+        mut args: impl Iterator<Item = String>,
     ) -> Result<Command, Box<dyn MiniGrepArgsError>> {
-        let args: Vec<_> = args.collect();
+        let executable = match args.next() {
+            Some(executable) => executable,
+            None => panic!("Missing the executable name."),
+        };
 
-        let amount_args = args.len();
+        let pattern = match args.next() {
+            Some(pattern) => pattern,
+            None => return Err(Box::new(InvalidSyntaxError::Missing(executable.clone()))),
+        };
 
-        if amount_args != 3 {
-            if amount_args == 0 {
-                panic!("Missing the executable name.");
-            }
+        let filename = match args.next() {
+            Some(filename) => filename,
+            None => return Err(Box::new(InvalidSyntaxError::Missing(executable.clone()))),
+        };
 
-            let error_ctor = if amount_args > 3 {
-                InvalidSyntaxError::TooMany
-            } else {
-                InvalidSyntaxError::Missing
-            };
-
-            return Err(Box::new(error_ctor(args[0].to_owned())));
+        if args.next().is_some() {
+            return Err(Box::new(InvalidSyntaxError::TooMany(executable)));
         }
 
-        Self::build(args[1].to_owned(), args[2].to_owned())
+        let ignore_case_env = env::var(Self::IGNORE_CASE_ENV_NAME);
+        let ignore_case = if let Ok(value) = ignore_case_env {
+            Self::TRUE_VALUES.contains(&value.to_lowercase().as_str())
+        } else {
+            eprintln!(
+                "Error during the get of the variable '{}'. The error: '{}'.",
+                Self::IGNORE_CASE_ENV_NAME,
+                ignore_case_env.unwrap_err(),
+            );
+
+            false
+        };
+
+        let case_sensitive = CaseSensitive::from(!ignore_case);
+
+        Self::build(pattern, filename, case_sensitive)
             .map_err(|error| Box::new(error) as Box<dyn MiniGrepArgsError>)
     }
 }
