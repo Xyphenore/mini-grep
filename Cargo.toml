@@ -22,5 +22,6 @@ maintenance = { status = "deprecated" }
 [dependencies]
 
 [dev-dependencies]
+rstest = "~0.21"
 
 [build-dependencies]
