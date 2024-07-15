@@ -11,22 +11,17 @@ mod e2e_tests {
     use rstest::*;
     use rstest_reuse::{self, *};
 
-    use crate::mini_grep::Command;
+    use super::Command;
 
     const RESOURCES_DIR: &str = "resources";
     const EXAMPLE_FILE: &str = "resources/example.txt";
 
-    #[cfg(windows)]
-    const NOT_READABLE_FILE: &str = "resources/not_readable_file.txt";
-    #[cfg(unix)]
-    const NOT_READABLE_FILE: &str = "resources/not_readable_unix_file";
-
     #[fixture]
     fn mini_grep_cmd(
         #[default("pattern")] pattern: &'static str,
-        #[default(EXAMPLE_FILE)] filename: &'static str,
         #[default(false)] give_ignore_case: bool,
         #[default("0")] ignore_case: &'static str,
+        #[default(EXAMPLE_FILE)] filename: &'static str,
     ) -> Cmd {
         let mut cargo = Cmd::new("cargo");
         cargo.args(["run", "--", pattern, filename]);
@@ -60,7 +55,7 @@ mod e2e_tests {
         fn as_an_empty_pattern(
             #[case] _case_mode: &'static str,
             #[case] _give_case_mode: bool,
-            #[with("", "", _give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
+            #[with("", _give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
@@ -96,7 +91,7 @@ mod e2e_tests {
         fn as_a_blank_pattern(
             #[case] _case_mode: &'static str,
             #[case] _give_case_mode: bool,
-            #[with("  ", "", _give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
+            #[with("  ", _give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
@@ -130,6 +125,9 @@ mod e2e_tests {
     }
 
     mod with_an_invalid_path {
+        #[cfg(unix)]
+        use std::fs::File;
+
         use super::*;
 
         const PATTERN: &str = "pattern";
@@ -138,7 +136,7 @@ mod e2e_tests {
         fn pointing_to_a_directory(
             #[case] _case_mode: &'static str,
             #[case] _give_case_mode: bool,
-            #[with(PATTERN, RESOURCES_DIR, _give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
+            #[with(PATTERN, _give_case_mode, _case_mode, RESOURCES_DIR)] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
@@ -177,7 +175,7 @@ mod e2e_tests {
         fn pointing_to_unknown_typed_node(
             #[case] _case_mode: &'static str,
             #[case] _give_case_mode: bool,
-            #[with(PATTERN, "", _give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
+            #[with(PATTERN, _give_case_mode, _case_mode, "TODO")] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
@@ -213,7 +211,7 @@ mod e2e_tests {
         fn pointing_to_a_not_existing_file(
             #[case] _case_mode: &'static str,
             #[case] _give_case_mode: bool,
-            #[with(PATTERN, "resources/not_existing_file", _give_case_mode, _case_mode)]
+            #[with(PATTERN, _give_case_mode, _case_mode, "resources/not_existing_file")]
             mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
@@ -246,11 +244,33 @@ mod e2e_tests {
             );
         }
 
+        #[cfg(unix)]
+        #[fixture]
+        fn not_readable_file() -> &'static str {
+            let not_readable_file = "resources/not_readable_unix_file";
+
+            if let Err(error) = File::options()
+                .write(true)
+                .read(false)
+                .create(true)
+                .open(not_readable_file)
+            {
+                panic!(
+                    "Cannot create the not-readable file '{not_readable_file}'. The \
+                error: '{error}'."
+                );
+            }
+
+            not_readable_file
+        }
+
+        #[cfg(unix)]
         #[apply(case_sensitive_test_cases)]
         fn pointing_to_a_file_without_read_permission(
+            not_readable_file: &'static str,
             #[case] _case_mode: &'static str,
             #[case] _give_case_mode: bool,
-            #[with(PATTERN, NOT_READABLE_FILE, _give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
+            #[with(PATTERN, _give_case_mode, _case_mode, not_readable_file)] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
@@ -278,7 +298,7 @@ mod e2e_tests {
 
             assert!(
                 stderr.contains(&format!(
-                    "Cannot open the file '{NOT_READABLE_FILE}', due to this error",
+                    "Cannot open the file '{not_readable_file}', due to this error",
                 )),
                 "Bad error in stderr: '{stderr}'.",
             );
@@ -313,7 +333,7 @@ mod e2e_tests {
         fn without_the_pattern(
             #[case] _case_mode: &'static str,
             #[case] give_case_mode: bool,
-            #[with("pattern", EXAMPLE_FILE, give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
+            #[with("pattern", give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
@@ -383,7 +403,7 @@ mod e2e_tests {
         fn with_a_line_with_the_pattern(
             #[case] _case_mode: &'static str,
             #[case] give_case_mode: bool,
-            #[with("test_data", EXAMPLE_FILE, give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
+            #[with("test_data", give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
@@ -459,7 +479,7 @@ mod e2e_tests {
         #[case::case_insensitive("TrUe")]
         fn with_a_line_with_the_pattern_and_ignore_case(
             #[case] _case_mode: &'static str,
-            #[with("TesT_DaTA", EXAMPLE_FILE, true, _case_mode)] mut mini_grep_cmd: Cmd,
+            #[with("TesT_DaTA", true, _case_mode)] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
@@ -528,7 +548,7 @@ mod e2e_tests {
         fn with_many_line_with_the_pattern(
             #[case] _case_mode: &'static str,
             #[case] give_case_mode: bool,
-            #[with("Rust", EXAMPLE_FILE, give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
+            #[with("Rust", give_case_mode, _case_mode)] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
@@ -627,7 +647,7 @@ mod e2e_tests {
         #[case::case_insensitive("TrUe")]
         fn with_many_line_with_the_pattern_and_ignore_case(
             #[case] _case_mode: &'static str,
-            #[with("rUsT", EXAMPLE_FILE, true, _case_mode)] mut mini_grep_cmd: Cmd,
+            #[with("rUsT", true, _case_mode)] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
