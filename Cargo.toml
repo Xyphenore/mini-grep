@@ -23,5 +23,6 @@ maintenance = { status = "deprecated" }
 
 [dev-dependencies]
 rstest = "~0.21"
+rstest_reuse = "~0.7"
 
 [build-dependencies]
