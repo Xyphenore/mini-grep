@@ -207,11 +207,46 @@ mod e2e_tests {
         }
 
         #[cfg(unix)]
+        #[fixture]
+        fn create_socket() -> &'static str {
+            use std::fs::create_dir;
+            use std::os::unix::net::UnixListener;
+            use std::path::Path;
+
+            let tmp_dir = Path::new("tmp");
+            let tmp_dir_string = tmp_dir.to_str().unwrap_or_else(|| {
+                panic!("Cannot convert the tmp directory to its string representation.")
+            });
+
+            if !tmp_dir.exists() {
+                create_dir(tmp_dir).unwrap_or_else(|error| panic!(
+                    "Error during the creation of the directory '{tmp_dir_string}'. The error: '{error}'."
+                ));
+            }
+
+            let file = tmp_dir.join("socket_test_mini_grep.sock");
+            let file_string = file.to_str().unwrap_or_else(|| {
+                panic!("Cannot convert the socket path to its string representation.")
+            });
+
+            if !file.exists() {
+                let _ = UnixListener::bind(file.clone()).unwrap_or_else(|error| {
+                    panic!(
+                        "Impossible to create an Unix socket '{file_string}'. The error: '{error}'."
+                    )
+                });
+            }
+
+            "tmp/socket_test_mini_grep.sock"
+        }
+
+        #[cfg(unix)]
         #[apply(case_sensitive_test_cases)]
         fn pointing_to_unknown_typed_node(
+            #[from(create_socket)] _create_socket: &'static str,
             #[case] _case_mode: &'static str,
             #[case] _give_case_mode: bool,
-            #[with(PATTERN, _give_case_mode, _case_mode, "TODO")] mut mini_grep_cmd: Cmd,
+            #[with(PATTERN, _give_case_mode, _case_mode, _create_socket)] mut mini_grep_cmd: Cmd,
         ) {
             let output = match mini_grep_cmd.output() {
                 Ok(output) => output,
@@ -227,18 +262,18 @@ mod e2e_tests {
                 }
             };
 
-            let stderr = match String::from_utf8(output.stderr) {
+            let stderr = clear_useless_lines_from(match String::from_utf8(output.stderr) {
                 Ok(stderr) => stderr,
                 Err(error) => {
                     panic!("Error during the string conversion of stderr. The error: '{error}'.")
                 }
-            };
+            });
 
             assert!(stdout.is_empty(), "Standard output: '{stdout}'.");
             assert!(!stderr.is_empty(), "Standard error output: '{stderr}'.");
 
             assert!(
-                stderr.contains("Cannot have a blank searched text ''."),
+                stderr.contains("is not a file, it is a unknown."),
                 "Bad error in stderr: '{stderr}'.",
             );
         }
