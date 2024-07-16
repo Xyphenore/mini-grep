@@ -161,9 +161,6 @@ mod e2e_tests {
     }
 
     mod with_an_invalid_path {
-        #[cfg(unix)]
-        use std::fs::File;
-
         use super::*;
 
         const PATTERN: &str = "pattern";
@@ -315,27 +312,46 @@ mod e2e_tests {
             );
         }
 
-        #[cfg(unix)]
         #[fixture]
         fn not_readable_file() -> &'static str {
-            let not_readable_file = "resources/not_readable_unix_file";
+            use std::fs::set_permissions;
+            use std::fs::File;
+            #[cfg(unix)]
+            use std::os::unix::fs::PermissionsExt;
+            #[cfg(windows)]
+            use std::os::windows::fs::PermissionsExt;
+            use std::path::Path;
 
-            if let Err(error) = File::options()
-                .write(true)
-                .read(false)
-                .create(true)
-                .open(not_readable_file)
-            {
+            let not_readable_file = "resources/not_readable_file.txt";
+
+            let not_readable_file_path = Path::new(not_readable_file);
+            if !not_readable_file_path.exists() {
+                if let Err(error) = File::create_new(not_readable_file_path) {
+                    panic!(
+                        "Cannot create the not-readable file '{not_readable_file}'. The \
+                        error: '{error}'.",
+                    );
+                }
+            }
+
+            let mut perms = not_readable_file_path.metadata()
+                .unwrap_or_else(|error| panic!(
+                    "Error during the get of permissions of '{not_readable_file}'. The error: '{error}'."
+                ))
+                .permissions();
+
+            // Remove read and write rights for the user
+            perms.set_mode(0o044);
+
+            if let Err(error) = set_permissions(not_readable_file, perms) {
                 panic!(
-                    "Cannot create the not-readable file '{not_readable_file}'. The \
-                error: '{error}'."
+                    "Cannot make the file '{not_readable_file}' not-readable. The error: '{error}'."
                 );
             }
 
             not_readable_file
         }
 
-        #[cfg(unix)]
         #[apply(case_sensitive_test_cases)]
         fn pointing_to_a_file_without_read_permission(
             not_readable_file: &'static str,
@@ -357,12 +373,12 @@ mod e2e_tests {
                 }
             };
 
-            let stderr = match String::from_utf8(output.stderr) {
+            let stderr = clear_useless_lines_from(match String::from_utf8(output.stderr) {
                 Ok(stderr) => stderr,
                 Err(error) => {
                     panic!("Error during the string conversion of stderr. The error: '{error}'.")
                 }
-            };
+            });
 
             assert!(stdout.is_empty(), "Standard output: '{stdout}'.");
             assert!(!stderr.is_empty(), "Standard error output: '{stderr}'.");
@@ -375,12 +391,14 @@ mod e2e_tests {
             );
 
             #[cfg(windows)]
-            assert!(
-                stderr.contains("(os error 5)"),
-                "Bad error in stderr: '{stderr}'.",
-            );
+            let error_code = 5;
             #[cfg(unix)]
-            todo!("Implement the error code check")
+            let error_code = 13;
+
+            assert!(
+                stderr.contains(&format!("(os error {error_code})")),
+                "Bad error in stderr: '{stderr}'",
+            );
         }
     }
 
