@@ -312,15 +312,13 @@ mod e2e_tests {
             );
         }
 
+        #[cfg(unix)]
         #[fixture]
         fn not_readable_file() -> &'static str {
-            use std::fs::set_permissions;
             use std::fs::File;
-            #[cfg(unix)]
-            use std::os::unix::fs::PermissionsExt;
-            #[cfg(windows)]
-            use std::os::windows::fs::PermissionsExt;
             use std::path::Path;
+            use std::fs::set_permissions;
+            use std::os::unix::fs::PermissionsExt;
 
             let not_readable_file = "resources/not_readable_file.txt";
 
@@ -352,6 +350,7 @@ mod e2e_tests {
             not_readable_file
         }
 
+        #[cfg(unix)]
         #[apply(case_sensitive_test_cases)]
         fn pointing_to_a_file_without_read_permission(
             not_readable_file: &'static str,
@@ -390,13 +389,8 @@ mod e2e_tests {
                 "Bad error in stderr: '{stderr}'.",
             );
 
-            #[cfg(windows)]
-            let error_code = 5;
-            #[cfg(unix)]
-            let error_code = 13;
-
             assert!(
-                stderr.contains(&format!("(os error {error_code})")),
+                stderr.contains("(os error 13)"),
                 "Bad error in stderr: '{stderr}'",
             );
         }
