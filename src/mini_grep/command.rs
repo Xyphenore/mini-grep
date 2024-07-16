@@ -8,10 +8,14 @@ use std::path::Path;
 
 use super::errors::{InvalidArgumentError, InvalidSyntaxError, MiniGrepArgsError};
 
+/// Indicate that MiniGrep use a case-sensitive or not pattern.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[doc(hidden)]
 enum CaseSensitive {
     #[default]
+    #[doc(hidden)]
     True,
+    #[doc(hidden)]
     False,
 }
 
@@ -31,18 +35,52 @@ impl From<CaseSensitive> for bool {
     }
 }
 
+/// The MiniGrep command to search each line that contains the pattern.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::env::args;
+/// use std::process;
+///
+/// use crate::mini_grep::Command;
+///
+/// Command::try_from(args())
+///     .unwrap_or_else(|error| {
+///         eprintln!("{error}");
+///         process::exit(error.code());
+///     })
+///     .execute()
+/// ```
 #[derive(Debug)]
 pub struct Command {
+    #[doc(hidden)]
     pattern: String,
+    #[doc(hidden)]
     filename: String,
+    #[doc(hidden)]
     file: File,
+    #[doc(hidden)]
     case_sensitive: bool,
 }
 
 impl Command {
+    /// The environment variable name used to activate the case-insensitive pattern.
     pub const IGNORE_CASE_ENV_NAME: &'static str = "IGNORE_CASE";
+
+    /// All accepted values to activate the case-insensitive pattern mode.
+    #[doc(hidden)]
     const TRUE_VALUES: &'static [&'static str] = &["true", "1"];
 
+    /// Execute the MiniGrep command.
+    ///
+    /// Print to stdout found lines in the given filename that contains the
+    /// given pattern.
+    ///
+    /// # Read errors
+    ///
+    /// Print to stderr an error message if a line cannot be read and continue the
+    /// read of the file.
     pub fn execute(&self) {
         let pattern = &self.pattern;
         let filename = &self.filename;
@@ -70,6 +108,18 @@ impl Command {
         }
     }
 
+    /// Search in the file all lines containing the pattern.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`Vec`] of [`(usize, String)`] that contains all lines and its
+    /// number, which contain the pattern.
+    ///
+    /// # Read errors
+    ///
+    /// Print to stderr an error message if a line cannot be read and continue the
+    /// read of the file.
+    #[doc(hidden)]
     fn search(&self) -> Vec<(usize, String)> {
         let pattern = if self.case_sensitive {
             self.pattern.clone()
@@ -104,6 +154,17 @@ impl Command {
             .collect()
     }
 
+    /// Build a [`Command`].
+    ///
+    /// # Returns
+    ///
+    /// Returns a new instance of [`Command`], or an [`InvalidArgumentError`]
+    /// if an error has occurred during the check of preconditions about arguments.
+    ///
+    /// # Panics
+    ///
+    /// If the absolute path cannot be converted to its string representation.
+    #[doc(hidden)]
     fn build(
         pattern: String,
         filename: String,
@@ -138,7 +199,7 @@ impl Command {
                 .unwrap_or_else(|| {
                     panic!(
                         "The absolute path conversion ('{filename}') to its \
-                        string representation fails."
+                        string representation fails.",
                     )
                 }));
         };
@@ -153,6 +214,18 @@ impl Command {
             })
     }
 
+    /// Build a [`Command`] from an [`Iterator`] of [`String`].
+    ///
+    /// # Returns
+    ///
+    /// Returns a new instance of [`Command`], or a [`Box`] of [`MiniGrepArgsError`]
+    /// if an error has occurred during the extraction of CLI arguments or during the
+    /// check of preconditions about arguments.
+    ///
+    /// # Panics
+    ///
+    /// If the iterator is empty.
+    #[doc(hidden)]
     fn try_from_iter(
         mut args: impl Iterator<Item = String>,
     ) -> Result<Command, Box<dyn MiniGrepArgsError>> {
@@ -198,6 +271,13 @@ impl Command {
 impl TryFrom<Args> for Command {
     type Error = Box<dyn MiniGrepArgsError>;
 
+    /// Build a [`Command`] from [`Args`].
+    ///
+    /// # Returns
+    ///
+    /// Returns a new instance of [`Command`], or a [`Box`] of [`MiniGrepArgsError`]
+    /// if an error has occurred during the extraction of CLI arguments or during the
+    /// check of preconditions about arguments.
     fn try_from(value: Args) -> Result<Command, Self::Error> {
         Self::try_from_iter(value)
     }

@@ -1,13 +1,22 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
+/// Indicate that [`Command::try_from()`](crate::Command::try_from) or
+/// [`Command::build`](crate::Command::build) receives a bad argument from CLI.
 pub trait MiniGrepArgsError: Debug + Display + Error {
+    /// Get the code used to stop the run of MiniGrep.
     fn code(&self) -> i32;
 }
 
+/// Indicate that [`Command::try_from()`](crate::Command::try_from) receives not
+/// enough or too many arguments from CLI.
 #[derive(Debug, Clone)]
 pub enum InvalidSyntaxError {
+    /// Indicate that [`Command::try_from()`](crate::Command::try_from) receives not
+    /// enough arguments from CLI.
     Missing(String),
+    /// Indicate that [`Command::try_from()`](crate::Command::try_from) receives too
+    /// many arguments from CLI.
     TooMany(String),
 }
 
@@ -29,6 +38,12 @@ impl Display for InvalidSyntaxError {
 impl Error for InvalidSyntaxError {}
 
 impl MiniGrepArgsError for InvalidSyntaxError {
+    /// Get the code used to stop the run of MiniGrep.
+    ///
+    /// # Returns
+    ///
+    /// - 126: If not enough arguments are given to CLI.
+    /// - 127: If too many arguments are given to CLI.
     fn code(&self) -> i32 {
         match self {
             Self::Missing(_) => 126,
@@ -37,12 +52,24 @@ impl MiniGrepArgsError for InvalidSyntaxError {
     }
 }
 
+/// Indicate that [`Command::build()`](crate::Command::build) receives a bad argument
+/// from CLI.
 #[derive(Debug)]
 pub enum InvalidArgumentError {
+    /// Indicate that [`Command::build()`](crate::Command::build) receives a blank
+    /// pattern, from CLI.
     BlankPattern(String),
+    /// Indicate that [`Command::build()`](crate::Command::build) receives a path to
+    /// a not file (directory or anything else), from CLI.
     NotAFile(String, String),
+    /// Indicate that [`Command::build()`](crate::Command::build) receives a path
+    /// pointing to a not existing file, from CLI.
     FileNotFound(String),
+    /// Indicate that [`Command::build()`](crate::Command::build) receives a
+    /// relative path that cannot be converted to the absolute path, from CLI.
     CannotResolvePath(String, std::io::Error),
+    /// Indicate that [`Command::build()`](crate::Command::build) receives a path
+    /// pointing to a not readable file, from CLI.
     NotAReadableFile(String, std::io::Error),
 }
 
@@ -72,6 +99,15 @@ impl Display for InvalidArgumentError {
 impl Error for InvalidArgumentError {}
 
 impl MiniGrepArgsError for InvalidArgumentError {
+    /// Get the code used to stop the run of MiniGrep.
+    ///
+    /// # Returns
+    ///
+    /// - 130: If receives a blank pattern.
+    /// - 131: If receives a path pointing to a directory or anything else than a file.
+    /// - 132: If receives a path pointing to a not existing file.
+    /// - 133: If receives a relative path that cannot be resolved to an absolute path.
+    /// - 134: If receives a path to a not readable file.
     fn code(&self) -> i32 {
         match self {
             Self::BlankPattern(_) => 130,

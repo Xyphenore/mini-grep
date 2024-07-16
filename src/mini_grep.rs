@@ -1,7 +1,33 @@
+//! The MiniGrep module.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use std::env::args;
+//! use std::process;
+//!
+//! use crate::mini_grep::Command;
+//!
+//! Command::try_from(args())
+//!     .unwrap_or_else(|error| {
+//!         eprintln!("{error}");
+//!         process::exit(error.code());
+//!     })
+//!     .execute()
+//! ```
+
 pub use self::command::Command;
 
+/// The module contains the class [`Command`].
 mod command;
 
+/// All errors returned by the class [`Command`].
+///
+/// # Errors
+///
+/// - [`MiniGrepArgsError`](errors::MiniGrepArgsError)
+/// - [`InvalidSyntaxError`](errors::InvalidSyntaxError)
+/// - [`InvalidArgumentError`](errors::InvalidArgumentError)
 mod errors;
 
 #[cfg(test)]
