@@ -59,6 +59,16 @@ mod e2e_tests {
         cargo
     }
 
+    fn clear_useless_lines_from(stderr: String) -> String {
+        String::from_iter(stderr.lines().filter(|line| {
+            let trimmed_line = line.trim_start();
+            !(trimmed_line.starts_with("Blocking")
+                || trimmed_line.starts_with("Running")
+                || trimmed_line.starts_with("Finished")
+                || trimmed_line.starts_with("Compiling"))
+        }))
+    }
+
     #[template]
     #[rstest]
     #[case::case_sensitive("0", true)]
@@ -340,20 +350,7 @@ mod e2e_tests {
     }
 
     mod with_a_valid_file {
-        use std::ops::Not;
-
         use super::*;
-
-        fn clear_useless_lines_from(stderr: String) -> String {
-            String::from_iter(stderr.lines().filter(|line| {
-                let trimmed_line = line.trim_start();
-                (trimmed_line.starts_with("Blocking")
-                    || trimmed_line.starts_with("Running")
-                    || trimmed_line.starts_with("Finished")
-                    || trimmed_line.starts_with("Compiling"))
-                .not()
-            }))
-        }
 
         #[apply(case_sensitive_test_cases)]
         fn without_the_pattern(
